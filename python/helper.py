@@ -1,8 +1,10 @@
+from __future__ import annotations  # For Python < 3.10
+
 import math
 import os
 import re
-from itertools import chain, combinations
-from typing import Any, Iterable, Sized
+from itertools import chain, combinations, product
+from typing import Any, Iterable, Sized, Callable, Sequence, Iterator
 
 import requests
 from bs4 import BeautifulSoup
@@ -245,7 +247,7 @@ def floats(s: str) -> list[float]:
     return [*map(float, re.findall(r"([\-+]?\d*(?:\d|\d\.|\.\d)\d*)", s))]
 
 
-def rotate_grid(grid: list[list[int]], n: int = 1) -> list[list[int]]:
+def rotate_grid(grid: list[list], n: int = 1) -> list[list]:
     """Rotates a 2D list by 90 degrees clockwise n times.
 
     Example:
@@ -256,23 +258,35 @@ def rotate_grid(grid: list[list[int]], n: int = 1) -> list[list[int]]:
     :param n: The number of times to rotate the grid (default: 1)
     :returns: The rotated grid
     """
-    grid = grid[:]
     for _ in range(n):
-        grid = list(zip(*grid[::-1]))
+        grid = [[grid[y][x] for y in range(len(grid) - 1, -1, -1)] for x in range(len(grid[0]))]
     return grid
 
 
-def flip_grid(grid: list[list[int]]) -> list[list[int]]:
-    """Flips a 2D list across the y-axis.
+def flip_grid_y(grid: list[list]) -> list[list]:
+    """flips a 2D list across the y-axis.
 
     Example:
-    >>> flip_grid([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+    >>> flip_grid_y([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
     [[3, 2, 1], [6, 5, 4], [9, 8, 7]]
 
     :param grid: the 2D list to flip
     :returns: the flipped 2D list
     """
     return [line[::-1] for line in grid]
+
+
+def flip_grid_x(grid: list[list]) -> list[list]:
+    """flips a 2D list across the x-axis.
+
+    Example:
+    >>> flip_grid_x([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+    [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
+
+    :param grid: the 2D list to flip
+    :returns: the flipped 2D list
+    """
+    return grid[::-1]
 
 
 def get_bit(n: int, i: int) -> int:
@@ -305,7 +319,7 @@ def set_bit(n: int, i: int, v: int) -> int:
 
 
 def flip_bit(n: int, i: int) -> int:
-    """Flips the ith bit of n.
+    """Flips (inverts) the ith bit of n.
 
     Example:
     >>> flip_bit(0b1101, 2)
@@ -361,8 +375,8 @@ def poweriter(s: Iterable) -> list[tuple]:
     """Finds the powerset of any iterable.
 
     Example:
-    >>> poweriter({1, 2, 3})
-    {{}, {1}, {2}, {3}, {1, 2}, {1, 3}, {2, 3}, {1, 2, 3}}
+    >>> poweriter((1, 2, 2))
+    [(), (1,), (2,), (2,), (1, 2), (1, 2), (2, 2), (1, 2, 2)]
 
     :param s: the iterable to find the powerset of
     :returns: the powerlist of s
@@ -473,3 +487,242 @@ def sign(n: int) -> int:
     :returns: the sign of n
     """
     return 0 if n == 0 else 1 if n > 0 else -1
+
+
+# +----------------------------------------------------------------------------+
+# |                                                                            |
+# |                               The Grid                                     |
+# |                                                                            |
+# +----------------------------------------------------------------------------+
+class Grid:
+    """A helpful class for dealing with 2D arrays"""
+
+    def __init__(self, grid: Sequence[Sequence], default: Any = None):
+        if len(grid) == 0:
+            raise ValueError("Grid cannot be empty.")
+
+        if all(len(row) == len(grid[0]) for row in grid):
+            self.grid = [[*row] for row in grid]
+        elif default is not None:
+            self.width = len(max(grid, key=len))
+            self.grid = [[*row] + [default] * (self.width - len(row)) for row in grid]
+        else:
+            raise ValueError("Grid must be rectangular or a default value must be given to pad shorter rows.")
+
+        self.height = len(grid)
+        self.width = len(grid[0])
+
+    def __getitem__(self, pos: int | tuple[int, int]) -> list:
+        if isinstance(pos, int):
+            return self.grid[pos]
+
+        if not (0 <= pos[0] < self.height):
+            raise IndexError(f"Y index {pos[0]} out of range.")
+        elif not (0 <= pos[1] < self.width):
+            raise IndexError(f"X index {pos[1]} out of range.")
+        return self.grid[pos[1]][pos[0]]
+
+    def __setitem__(self, pos: tuple[int, int], value: Any):
+        if not (0 <= pos[0] < self.height):
+            raise IndexError(f"Y index {pos[0]} out of range.")
+        elif not (0 <= pos[1] < self.width):
+            raise IndexError(f"X index {pos[1]} out of range.")
+        self.grid[pos[1]][pos[0]] = value
+
+    def __str__(self) -> str:
+        return "\n".join(map(str, self.grid))
+
+    def __len__(self) -> int:
+        return self.height
+
+    def __contains__(self, item) -> bool:
+        return any(item in row for row in self.grid)
+
+    def __iter__(self) -> Iterable[list]:
+        return iter(self.grid)
+
+    def __eq__(self, other):
+        if self.grid == other.grid:
+            return True
+        return (
+                self.width == other.width
+                and self.height == other.height
+                and all(self[x, y] == other[x, y] for x in range(self.height) for y in range(self.width))
+        )
+
+    def str_aligned_l(self, sep: str = ", ", pad: str = " ") -> str:
+        """Gets a string representation of the grid with each columned padded to a uniform length.
+        Shorter items are left-aligned."""
+        mapped = self.mapped_items(str)
+        widths = [len(max(row, key=len)) for row in mapped.rotated()]
+        return "\n".join(sep.join(item.ljust(widths[x], pad) for x, item in enumerate(row)) for row in mapped)
+
+    def str_aligned_r(self, sep: str = ", ", pad: str = " ") -> str:
+        """Gets a string representation of the grid with each columned padded to a uniform length.
+        Shorter items are right-aligned."""
+        mapped = self.mapped_items(str)
+        widths = [len(max(row, key=len)) for row in mapped.rotated()]
+        return "\n".join(sep.join(item.rjust(widths[x], pad) for x, item in enumerate(row)) for row in mapped)
+
+    def copy(self):
+        return Grid(self.grid)
+
+    def row(self, index: int) -> list:
+        """Gets the row at the given index from the grid."""
+        return self.grid[index]
+
+    def col(self, index: int) -> list:
+        """Gets the column at the given index from the grid."""
+        return [row[index] for row in self.grid]
+
+    def pos_exists(self, pos: tuple[int, int]) -> bool:
+        """Checks if the given position exists in the grid."""
+        return 0 <= pos[0] < self.height and 0 <= pos[1] < self.width
+
+    def positions(self) -> Iterator[tuple[int, int]]:
+        """Returns an iterator of all positions in the grid."""
+        return product(range(self.height), range(self.width))
+
+    def contains(self, item: Any) -> bool:
+        """Checks if the given item is in the grid."""
+        return self.__contains__(item)
+
+    def append(self, row: Sequence) -> None:
+        """Appends the given row to the grid."""
+        if len(row) != self.width:
+            raise ValueError(f"Row length must match grid width ({len(row)} != {self.width}).")
+        self.grid.append(list(row))
+        self.height += 1
+
+    def append_row(self, row: Sequence) -> None:
+        """Appends the given row to the grid (alias for Grid.append)."""
+        self.append(row)
+
+    def append_col(self, col: Sequence) -> None:
+        """Appends the given column to the grid."""
+        if len(col) != self.height:
+            raise ValueError(f"Column must be the same length as the grid ({len(col)} != {self.height}).")
+        self.grid = [row + [col[i]] for i, row in enumerate(self.grid)]
+        self.width += 1
+
+    def prepend(self, row: Sequence) -> None:
+        """Prepends the given row to the grid."""
+        if len(row) != self.width:
+            raise ValueError(f"Row length must match grid width ({len(row)} != {self.width}).")
+        self.grid = [list(row)] + self.grid
+        self.height += 1
+
+    def prepend_row(self, row: Sequence) -> None:
+        """Prepends the given row to the grid (alias for Grid.prepend)."""
+        self.prepend(row)
+
+    def prepend_col(self, col: Sequence) -> None:
+        """Prepends the given column to the grid."""
+        if len(col) != self.height:
+            raise ValueError(f"Column must be the same length as the grid ({len(col)} != {self.height}).")
+        self.grid = [[col[i]] + row for i, row in enumerate(self.grid)]
+        self.width += 1
+
+    def pop_row(self, index: int = -1) -> list:
+        """Pops the row at the given index from the grid."""
+        self.height -= 1
+        row = self.grid.pop(index)
+        return row
+
+    def pop_col(self, index: int = -1) -> list:
+        """Pops the column at the given index from the grid."""
+        self.width -= 1
+        col = [row.pop(index) for row in self.grid]
+        return col
+
+    def get_pos(self, item: Any) -> tuple[int, int]:
+        """Returns the first found position of the given item in the grid in the format (x, y)."""
+        for y, row in enumerate(self.grid):
+            for x, col in enumerate(row):
+                if col == item:
+                    return y, x
+        raise ValueError(f"{item} is not in grid.")
+
+    def replace(self, old: Any, new: Any, count: int = None) -> None:
+        """Replaces all instances of the old item with the new item."""
+        count = count or len(self)
+        for y, row in enumerate(self.grid):
+            for x, col in enumerate(row):
+                if col == old:
+                    self[x, y] = new
+                    count -= 1
+                    if count == 0:
+                        return
+
+    def replaced(self, old: Any, new: Any, count: int = None) -> Grid:
+        """Returns a copy of the grid with all instances of the old item replaced with the new item."""
+        grid = self.copy()
+        grid.replace(old, new, count)
+        return grid
+
+    def count(self, item: Any) -> int:
+        """Counts the number of times the given item is in the grid."""
+        return sum(row.count(item) for row in self.grid)
+
+    def max(self, key: Callable[[], Any] = None):
+        """Finds the item of the largest value in the grid."""
+        return max((max(row, key=key) for row in self.grid), key=key)
+
+    def min(self, key: Callable[[], Any] = None):
+        """Finds the item of the smallest value in the grid."""
+        return min((min(row, key=key) for row in self.grid), key=key)
+
+    def rotate(self, n: int = 1) -> None:
+        """Rotates the grid n times."""
+        self.grid = rotate_grid(self.grid, n)
+
+    def rotated(self, n: int = 1) -> Grid:
+        """Returns a rotated copy of the grid."""
+        return Grid(rotate_grid(self.grid, n))
+
+    def flip_y(self) -> None:
+        """Flips the grid."""
+        self.grid = flip_grid_y(self.grid)
+
+    def flipped_y(self) -> Grid:
+        """Returns a flipped copy of the grid."""
+        return Grid(flip_grid_y(self.grid))
+
+    def flip_x(self) -> None:
+        """Flips the grid."""
+        self.grid = flip_grid_x(self.grid)
+
+    def flipped_x(self) -> Grid:
+        """Returns a flipped copy of the grid."""
+        return Grid(flip_grid_x(self.grid))
+
+    def rotations(self) -> Iterator[Grid]:
+        """Returns an iterator of all rotations of the grid."""
+        for i in range(4):
+            yield self.rotated(i)
+
+    def permutations(self) -> Iterator[Grid]:
+        """Returns an iterator of all the possible rotations (including mirrored) of the grid."""
+        for rot in self.rotations():
+            yield rot
+            yield rot.flipped_y()
+
+    def map_items(self, func: Callable[[], Any]) -> None:
+        """Applies a function to every item in the grid."""
+        self.grid = [[*map(func, row)] for row in self.grid]
+
+    def mapped_items(self, func: Callable[[], Any]) -> Grid:
+        """Returns a copy of the grid with a function applied to every item."""
+        return Grid([[*map(func, row)] for row in self.grid])
+
+    def map_rows(self, func: Callable[[list], list]) -> None:
+        """Applies a function to every row in the grid."""
+        self.grid = [*map(func, self.grid)]
+
+    def mapped_rows(self, func: Callable[[list], list]) -> Grid:
+        """Returns a copy of the grid with a function applied to every row."""
+        return Grid([*map(func, self.grid)])
+
+
+test_grid = Grid([[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]])
+print(test_grid.str_aligned_l())
