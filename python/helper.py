@@ -1,3 +1,4 @@
+import math
 import os
 import re
 from itertools import chain, combinations
@@ -11,6 +12,11 @@ ADJACENT_4 = ((-1, 0), (1, 0), (0, -1), (0, 1))
 ADJACENT_8 = ((-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1))
 
 
+# +----------------------------------------------------------------------------+
+# |                                                                            |
+# |                            Output formatting                               |
+# |                                                                            |
+# +----------------------------------------------------------------------------+
 def _print_part(n: int, ans: Any) -> None:
     """Print answer for part n.
 
@@ -36,6 +42,11 @@ def print_part_2(ans: Any) -> None:
     _print_part(2, ans)
 
 
+# +----------------------------------------------------------------------------+
+# |                                                                            |
+# |                            Submitting answers                              |
+# |                                                                            |
+# +----------------------------------------------------------------------------+
 def _get_session_cookie() -> str:
     """Get the session cookie from the cookie file.
 
@@ -120,6 +131,11 @@ def submit_part_2(ans: Any, day: int, year: int = 2021) -> None:
     _submit(2, ans, day, year)
 
 
+# +----------------------------------------------------------------------------+
+# |                                                                            |
+# |                            Input downloading                               |
+# |                                                                            |
+# +----------------------------------------------------------------------------+
 def _download_input(day: int, year: int, path: str) -> None:
     """Download the input file and save it to the given path.
 
@@ -185,6 +201,11 @@ def get_input_lines(day: int, year: int = 2021, path: str = "../inputs/") -> lis
     return lines
 
 
+# +----------------------------------------------------------------------------+
+# |                                                                            |
+# |                            Misc. Functions                                 |
+# |                                                                            |
+# +----------------------------------------------------------------------------+
 def digits(s: str) -> list[int]:
     """Finds all single digits in a string.
 
@@ -209,6 +230,19 @@ def ints(s: str) -> list[int]:
     :returns: a list of all integers in the string
     """
     return [int(x) for x in re.findall(r"-?\d+", s)]
+
+
+def floats(s: str) -> list[float]:
+    """Finds all floats in a string.
+
+    Example:
+    >>> floats("1a-23.5")
+    [1.0, -23.5]
+
+    :param s: the string to find floats in
+    :returns: a list of all floats in the string
+    """
+    return [*map(float, re.findall(r"([\-+]?\d*(?:\d|\d\.|\.\d)\d*)", s))]
 
 
 def rotate_grid(grid: list[list[int]], n: int = 1) -> list[list[int]]:
@@ -259,7 +293,7 @@ def set_bit(n: int, i: int, v: int) -> int:
     """Sets the ith bit of n to v.
 
     Example:
-    >>> set_bit(0b1101, 2, 1)
+    >>> set_bit(0b1101, 1, 1)
     0b1101
 
     :param n: the number to set the bit in
@@ -268,6 +302,20 @@ def set_bit(n: int, i: int, v: int) -> int:
     :returns: the number with the ith bit set to v
     """
     return n | (v << i)
+
+
+def flip_bit(n: int, i: int) -> int:
+    """Flips the ith bit of n.
+
+    Example:
+    >>> flip_bit(0b1101, 2)
+    0b1001
+
+    :param n: the number to flip the bit in
+    :param i: the index of the bit to flip
+    :returns: the number with the ith bit flipped
+    """
+    return n ^ (1 << i)
 
 
 def reverse_bits(n: int) -> int:
@@ -319,7 +367,10 @@ def poweriter(s: Iterable) -> list[tuple]:
     :param s: the iterable to find the powerset of
     :returns: the powerlist of s
     """
-    assert isinstance(s, Sized) and isinstance(s, Iterable)
+    try:
+        assert isinstance(s, Sized) and isinstance(s, Iterable)
+    except AssertionError:
+        raise TypeError(f"{type(s)} does not define the method __{'len' if isinstance(s, Iterable) else 'iter'}__.")
     return list(chain.from_iterable(combinations(s, r) for r in range(len(s) + 1)))
 
 
@@ -353,3 +404,72 @@ def full_flatten(ls: Iterable) -> list:
         else:
             flattened += [el]
     return flattened
+
+
+def distance(p1: tuple[float, float], p2: tuple[float, float]) -> float:
+    """Gets the distance between two points.
+
+    Example:
+    >>> distance((0, 0), (3, 4))
+    5.0
+
+    :param p1: the first point
+    :param p2: the second point
+    :returns: the distance between p1 and p2
+    """
+    return math.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2)
+
+
+def distance_manhattan(p1: tuple[float, float], p2: tuple[float, float]) -> float:
+    """Gets the manhattan distance between two points.
+
+    Example:
+    >>> distance_manhattan((1, 2), (3, 4))
+    4
+
+    :param p1: the first point
+    :param p2: the second point
+    :returns: the manhattan distance between p1 and p2
+    """
+    return abs(p1[0] - p2[0]) + abs(p1[1] - p2[1])
+
+
+def dot_product(p1: tuple[float, float], p2: tuple[float, float]) -> float:
+    """Gets the dot product of two 2D vectors.
+
+    Example:
+    >>> dot_product((1, 2), (3, 4))
+    11
+
+    :param p1: the first vector
+    :param p2: the second vector
+    :returns: the dot product of p1 and p2
+    """
+    return p1[0] * p2[0] + p1[1] * p2[1]
+
+
+def dot_iter(p1: Iterable[float], p2: Iterable[float]) -> float:
+    """Gets the dot product of two nD vectors.
+
+    Example:
+    >>> dot_iter([1, 2, 3, 4], [5, 6, 7, 8])
+    70
+
+    :param p1: the first vector
+    :param p2: the second vector
+    :returns: the dot product of p1 and p2
+    """
+    return sum(map(lambda x, y: x * y, p1, p2))
+
+
+def sign(n: int) -> int:
+    """Gets the sign of a number.
+
+    Example:
+    >>> sign(1)
+    1
+
+    :param n: the number to get the sign of
+    :returns: the sign of n
+    """
+    return 0 if n == 0 else 1 if n > 0 else -1
