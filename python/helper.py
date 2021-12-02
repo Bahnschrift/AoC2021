@@ -203,6 +203,17 @@ def get_input_lines(day: int, year: int = 2021, path: str = "../inputs/") -> lis
     return lines
 
 
+def get_input_ints(day: int, year: int = 2021, path: str = "../inputs/") -> list[int]:
+    """Gets the AoC input as a list of ints.
+
+    :param day: the day of the AoC challenge
+    :param year: the year of the AoC challenge (default: 2021)
+    :param path: the path to the folder containing the input file (default: "../inputs/")
+    :returns: the input as a list of ints
+    """
+    return list(map(int, get_input_lines(day=day, year=year, path=path)))
+
+
 # +----------------------------------------------------------------------------+
 # |                                                                            |
 # |                            Misc. Functions                                 |
@@ -258,6 +269,10 @@ def rotate_grid(grid: list[list], n: int = 1) -> list[list]:
     :param n: The number of times to rotate the grid (default: 1)
     :returns: The rotated grid
     """
+    if n < 0:
+        return rotate_grid(grid, n + 4)
+    if n > 3:
+        return rotate_grid(grid, n - 4)
     for _ in range(n):
         grid = [[grid[y][x] for y in range(len(grid) - 1, -1, -1)] for x in range(len(grid[0]))]
     return grid
@@ -516,10 +531,10 @@ class Grid:
         if isinstance(pos, int):
             return self.grid[pos]
 
-        if not (0 <= pos[0] < self.height):
-            raise IndexError(f"Y index {pos[0]} out of range.")
-        elif not (0 <= pos[1] < self.width):
-            raise IndexError(f"X index {pos[1]} out of range.")
+        if not (0 <= pos[0] < self.width):
+            raise IndexError(f"X index {pos[0]} out of range.")
+        elif not (0 <= pos[1] < self.height):
+            raise IndexError(f"Y index {pos[1]} out of range.")
         return self.grid[pos[1]][pos[0]]
 
     def __setitem__(self, pos: tuple[int, int], value: Any):
@@ -532,6 +547,9 @@ class Grid:
     def __str__(self) -> str:
         return "\n".join(map(str, self.grid))
 
+    def __repr__(self):
+        return f"Grid({self.grid})"
+
     def __len__(self) -> int:
         return self.height
 
@@ -542,10 +560,9 @@ class Grid:
         return iter(self.grid)
 
     def __eq__(self, other):
-        if self.grid == other.grid:
-            return True
         return (
-                self.width == other.width
+                self.grid == other.grid
+                or self.width == other.width
                 and self.height == other.height
                 and all(self[x, y] == other[x, y] for x in range(self.height) for y in range(self.width))
         )
@@ -707,11 +724,27 @@ class Grid:
             yield rot
             yield rot.flipped_y()
 
-    def map_items(self, func: Callable[[], Any]) -> None:
+    def edges(self) -> Iterator[Grid]:
+        """Returns an iterator of all four edges of the grid."""
+        yield self.row(0)
+        yield self.col(0)
+        if self.height > 1:
+            yield self.row(-1)
+        if self.width > 1:
+            yield self.col(-1)
+
+    def edge_positions(self) -> Iterator[tuple[int, int]]:
+        """Returns an iterator of all the positions of each tile on the edge."""
+        for x in range(self.width):
+            for y in range(self.height):
+                if x == 0 or y == 0 or x == self.width - 1 or y == self.height - 1:
+                    yield x, y
+
+    def map_items(self, func: Callable[..., Any]) -> None:
         """Applies a function to every item in the grid."""
         self.grid = [[*map(func, row)] for row in self.grid]
 
-    def mapped_items(self, func: Callable[[], Any]) -> Grid:
+    def mapped_items(self, func: Callable[..., Any]) -> Grid:
         """Returns a copy of the grid with a function applied to every item."""
         return Grid([[*map(func, row)] for row in self.grid])
 
@@ -723,6 +756,11 @@ class Grid:
         """Returns a copy of the grid with a function applied to every row."""
         return Grid([*map(func, self.grid)])
 
+    def map_cols(self, func: Callable[[list], list]) -> None:
+        """Applies a function to every column in the grid."""
+        self.grid = self.rotated(1).mapped_rows(func).rotated(-1)
 
-test_grid = Grid([[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]])
-print(test_grid.str_aligned_l())
+    def mapped_cols(self, func: Callable[[list], list]) -> Grid:
+        """Returns a copy of the grid with a function applied to every column."""
+        # TODO: This is a bit inefficient. Make it better.
+        return self.rotated(1).mapped_rows(func).rotated(-1)

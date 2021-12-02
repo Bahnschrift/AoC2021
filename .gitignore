@@ -3,3 +3,6 @@ venv/
 inputs/cookie.txt
 .ipynb_checkpoints/
 __pycache__/
+Lib/
+Scripts/
+pyvenv.cfg
