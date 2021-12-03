@@ -4,7 +4,7 @@ import math
 import os
 import re
 from itertools import chain, combinations, product
-from typing import Any, Iterable, Sized, Callable, Sequence, Iterator
+from typing import Any, Iterable, Sized, Callable, Sequence, Iterator, List
 
 import requests
 from bs4 import BeautifulSoup
@@ -12,6 +12,8 @@ from rich import print
 
 ADJACENT_4 = ((-1, 0), (1, 0), (0, -1), (0, 1))
 ADJACENT_8 = ((-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1))
+
+COOKIE_PATH = "../inputs/cookie.txt"
 
 
 # +----------------------------------------------------------------------------+
@@ -49,13 +51,13 @@ def print_part_2(ans: Any) -> None:
 # |                            Submitting answers                              |
 # |                                                                            |
 # +----------------------------------------------------------------------------+
-def _get_session_cookie() -> str:
+def _get_session_cookie() -> str | None:
     """Get the session cookie from the cookie file.
 
     :returns: The session cookie.
     """
     try:
-        with open("../inputs/cookie.txt", "r") as f:
+        with open(COOKIE_PATH, "r") as f:
             return f.read().strip()
     except FileNotFoundError:
         _update_session_cookie()
@@ -65,7 +67,7 @@ def _get_session_cookie() -> str:
 def _update_session_cookie() -> None:
     """Update the session cookie in the cookie file."""
     print("[bold yellow]Updating session cookie...")
-    with open("../inputs/cookie.txt", "w+") as f:
+    with open(COOKIE_PATH, "w+") as f:
         new = input("Session cookie is invalid. Please enter the new session cookie or leave blank to cancel")
         if not new:
             exit(1)
@@ -86,6 +88,7 @@ def _submit(x: int, ans: Any, day: int, year: int) -> None:
     data = {"level": x, "answer": str(ans)}
     response = requests.post(url, cookies=headers, data=data)
     soup = BeautifulSoup(response.text, "html.parser")
+    assert soup.article is not None
     message = soup.article.text
     response.close()
 
@@ -513,6 +516,10 @@ class Grid:
     """A helpful class for dealing with 2D arrays"""
 
     def __init__(self, grid: Sequence[Sequence], default: Any = None):
+        grid: List[List[Any]]
+        width: int
+        height: int
+
         if len(grid) == 0:
             raise ValueError("Grid cannot be empty.")
 
