@@ -188,7 +188,7 @@ def get_input(day: int, year: int = 2021, path: str = "../inputs/") -> str:
     """
     _ensure_input_file(day, year, path)
     with open(f"{path}/day{day}.txt", "r") as f:
-        inp = f.read()
+        inp = f.read().rstrip("\n")
     return inp
 
 
