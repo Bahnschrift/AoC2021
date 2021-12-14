@@ -4,7 +4,7 @@ import math
 import os
 import re
 from itertools import chain, combinations, product
-from typing import Any, Iterable, Sized, Callable, Sequence, Iterator, List
+from typing import Any, Iterable, Sized, Callable, Sequence, Iterator, List, TypeVar
 
 import requests
 from bs4 import BeautifulSoup
@@ -512,11 +512,13 @@ def sign(n: int) -> int:
 # |                               The Grid                                     |
 # |                                                                            |
 # +----------------------------------------------------------------------------+
+
+T = TypeVar('T')
+
 class Grid:
     """A helpful class for dealing with 2D arrays"""
-
-    def __init__(self, grid: Sequence[Sequence], default: Any = None):
-        grid: List[List[Any]]
+    def __init__(self, grid: Sequence[Sequence[T]], default: Any = None):
+        grid: List[List[T]]
         width: int
         height: int
 
@@ -534,8 +536,11 @@ class Grid:
         self.height = len(grid)
         self.width = len(grid[0])
 
-    def __getitem__(self, pos: int | tuple[int, int]) -> list:
+    def __getitem__(self, pos: int | tuple[int, int] | slice) -> list | T:
         if isinstance(pos, int):
+            return self.grid[pos]
+        
+        if isinstance(pos, slice):
             return self.grid[pos]
 
         if not (0 <= pos[0] < self.width):
@@ -573,6 +578,66 @@ class Grid:
                 and self.height == other.height
                 and all(self[x, y] == other[x, y] for x in range(self.height) for y in range(self.width))
         )
+    
+    def __add__(self, other: Grid):
+        """Adds the items of two grids together."""
+        new = []
+        if self.width != other.width or self.height != other.height:
+            raise ValueError("Grids must be the same size.")
+        for y, row in enumerate(self.grid):
+            r = []
+            for x, cell in enumerate(row):
+                r.append(cell + other[x, y])
+            new.append(r)
+        return Grid(new)
+    
+    def __sub__(self, other: Grid):
+        """Subtracts the items of two grids."""
+        new = []
+        if self.width != other.width or self.height != other.height:
+            raise ValueError("Grids must be the same size.")
+        for y, row in enumerate(self.grid):
+            r = []
+            for x, cell in enumerate(row):
+                r.append(cell - other[x, y])
+            new.append(r)
+        return Grid(new)
+    
+    def __mul__(self, other: Grid):
+        """Multiplies the items of two grids."""
+        new = []
+        if self.width != other.width or self.height != other.height:
+            raise ValueError("Grids must be the same size.")
+        for y, row in enumerate(self.grid):
+            r = []
+            for x, cell in enumerate(row):
+                r.append(cell * other[x, y])
+            new.append(r)
+        return Grid(new)
+
+    def __truediv__(self, other: Grid):
+        """Divides the items of two grids."""
+        new = []
+        if self.width != other.width or self.height != other.height:
+            raise ValueError("Grids must be the same size.")
+        for y, row in enumerate(self.grid):
+            r = []
+            for x, cell in enumerate(row):
+                r.append(cell / other[x, y])
+            new.append(r)
+        return Grid(new)
+
+    def __floordiv__(self, other: Grid):
+        """Divides the items of two grids using the floor function."""
+        new = []
+        if self.width != other.width or self.height != other.height:
+            raise ValueError("Grids must be the same size.")
+        for y, row in enumerate(self.grid):
+            r = []
+            for x, cell in enumerate(row):
+                r.append(cell // other[x, y])
+            new.append(r)
+        return Grid(new)
 
     def str_aligned_l(self, sep: str = ", ", pad: str = " ") -> str:
         """Gets a string representation of the grid with each columned padded to a uniform length.
