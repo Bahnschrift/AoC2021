@@ -513,11 +513,39 @@ def sign(n: int) -> int:
 # |                                                                            |
 # +----------------------------------------------------------------------------+
 
-T = TypeVar('T')
+
+
 
 class Grid:
-    """A helpful class for dealing with 2D arrays"""
+    """A helpful class for dealing with 2D arrays.
+    Initialize with either a 2D list or a default value, width and height.
+    """
+
+    T = TypeVar("T")
+
+    @staticmethod
+    def of2DList(l: list[list[T]]) -> Grid:
+        """Initializes a Grid with a 2D list.
+
+        :param l: the 2D list to initialize the grid with
+        :returns: the grid initialized with the 2D list
+        """
+        return Grid(l)
+
+    @staticmethod
+    def ofValWidthHeight(val: T, width: int, height: int) -> Grid:
+        """Initializes a grid with a default value and width and height.
+        [[0, 0], [0, 0]]
+
+        :param val: the default value
+        :param width: the width of the grid
+        :param height: the height of the grid
+        :returns: a grid with the specified width and height and the default value
+        """
+        return Grid([[val] * width for _ in range(height)])
+
     def __init__(self, grid: Sequence[Sequence[T]], default: Any = None):
+        T = TypeVar("T")
         grid: List[List[T]]
         width: int
         height: int
@@ -533,13 +561,13 @@ class Grid:
         else:
             raise ValueError("Grid must be rectangular or a default value must be given to pad shorter rows.")
 
-        self.height = len(grid)
         self.width = len(grid[0])
+        self.height = len(grid)
 
     def __getitem__(self, pos: int | tuple[int, int] | slice) -> list | T:
         if isinstance(pos, int):
             return self.grid[pos]
-        
+
         if isinstance(pos, slice):
             return self.grid[pos]
 
@@ -573,12 +601,12 @@ class Grid:
 
     def __eq__(self, other):
         return (
-                self.grid == other.grid
-                or self.width == other.width
-                and self.height == other.height
-                and all(self[x, y] == other[x, y] for x in range(self.height) for y in range(self.width))
+            self.grid == other.grid
+            or self.width == other.width
+            and self.height == other.height
+            and all(self[x, y] == other[x, y] for x in range(self.height) for y in range(self.width))
         )
-    
+
     def __add__(self, other: Grid):
         """Adds the items of two grids together."""
         new = []
@@ -590,7 +618,7 @@ class Grid:
                 r.append(cell + other[x, y])
             new.append(r)
         return Grid(new)
-    
+
     def __sub__(self, other: Grid):
         """Subtracts the items of two grids."""
         new = []
@@ -602,7 +630,7 @@ class Grid:
                 r.append(cell - other[x, y])
             new.append(r)
         return Grid(new)
-    
+
     def __mul__(self, other: Grid):
         """Multiplies the items of two grids."""
         new = []
