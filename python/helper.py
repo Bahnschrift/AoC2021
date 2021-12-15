@@ -861,9 +861,6 @@ class Grid(Generic[T]):
     def mapped_items(self, func: Callable[[T], N]) -> Grid[N]:
         """Returns a copy of the grid with a function applied to every item."""
         return Grid([[*map(func, row)] for row in self.grid])
-        new = self.copy()
-        new.map_items(func)
-        return new
 
     # def map_rows(self, func: Callable[[list[T]], list[N]]) -> None:
     #     """Applies a function to every row in the grid."""
