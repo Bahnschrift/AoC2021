@@ -1,10 +1,13 @@
-from __future__ import annotations  # For Python < 3.10
+from __future__ import annotations
+# from _typeshed import SupportsGreaterThan, SupportsLessThan  # For Python < 3.10
 
 import math
 import os
 import re
 from itertools import chain, combinations, product
-from typing import Any, Iterable, Sized, Callable, Sequence, Iterator, List, TypeVar
+from typing import Any, Iterable, Sized, Callable, Sequence, Iterator, TypeVar, Generic, TYPE_CHECKING
+if TYPE_CHECKING:
+    from _typeshed import SupportsGreaterThan, SupportsLessThan  # For Python < 3.10
 
 import requests
 from bs4 import BeautifulSoup
@@ -515,16 +518,15 @@ def sign(n: int) -> int:
 
 
 
+T = TypeVar("T")
 
-class Grid:
+class Grid(Generic[T]):
     """A helpful class for dealing with 2D arrays.
     Initialize with either a 2D list or a default value, width and height.
     """
 
-    T = TypeVar("T")
-
     @staticmethod
-    def of2DList(l: list[list[T]]) -> Grid:
+    def of2Dlist(l: list[list[T]]) -> Grid:
         """Initializes a Grid with a 2D list.
 
         :param l: the 2D list to initialize the grid with
@@ -545,10 +547,10 @@ class Grid:
         return Grid([[val] * width for _ in range(height)])
 
     def __init__(self, grid: Sequence[Sequence[T]], default: Any = None):
-        T = TypeVar("T")
-        grid: List[List[T]]
-        width: int
-        height: int
+        # T = TypeVar("T")
+        self.grid: list[list[T]]
+        self.width: int
+        self.height: int
 
         if len(grid) == 0:
             raise ValueError("Grid cannot be empty.")
@@ -564,7 +566,7 @@ class Grid:
         self.width = len(grid[0])
         self.height = len(grid)
 
-    def __getitem__(self, pos: int | tuple[int, int] | slice) -> list | T:
+    def __getitem__(self, pos: int | tuple[int, int] | slice) -> T | list[T] | list[list[T]]:
         if isinstance(pos, int):
             return self.grid[pos]
 
@@ -587,7 +589,7 @@ class Grid:
     def __str__(self) -> str:
         return "\n".join(map(str, self.grid))
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"Grid({self.grid})"
 
     def __len__(self) -> int:
@@ -607,7 +609,7 @@ class Grid:
             and all(self[x, y] == other[x, y] for x in range(self.height) for y in range(self.width))
         )
 
-    def __add__(self, other: Grid):
+    def __add__(self, other: Grid[T]) -> Grid:
         """Adds the items of two grids together."""
         new = []
         if self.width != other.width or self.height != other.height:
@@ -619,7 +621,7 @@ class Grid:
             new.append(r)
         return Grid(new)
 
-    def __sub__(self, other: Grid):
+    def __sub__(self, other: Grid[T]) -> Grid:
         """Subtracts the items of two grids."""
         new = []
         if self.width != other.width or self.height != other.height:
@@ -627,7 +629,7 @@ class Grid:
         for y, row in enumerate(self.grid):
             r = []
             for x, cell in enumerate(row):
-                r.append(cell - other[x, y])
+                new = cell - other[x, y]
             new.append(r)
         return Grid(new)
 
@@ -781,11 +783,11 @@ class Grid:
         """Counts the number of times the given item is in the grid."""
         return sum(row.count(item) for row in self.grid)
 
-    def max(self, key: Callable[[], Any] = None):
+    def max(self, key: Callable[[T], SupportsGreaterThan]=None):
         """Finds the item of the largest value in the grid."""
         return max((max(row, key=key) for row in self.grid), key=key)
 
-    def min(self, key: Callable[[], Any] = None):
+    def min(self, key: Callable[[T], SupportsLessThan] = None):
         """Finds the item of the smallest value in the grid."""
         return min((min(row, key=key) for row in self.grid), key=key)
 
@@ -793,7 +795,7 @@ class Grid:
         """Rotates the grid n times."""
         self.grid = rotate_grid(self.grid, n)
 
-    def rotated(self, n: int = 1) -> Grid:
+    def rotated(self, n: int = 1) -> Grid[T]:
         """Returns a rotated copy of the grid."""
         return Grid(rotate_grid(self.grid, n))
 
@@ -801,7 +803,7 @@ class Grid:
         """Flips the grid."""
         self.grid = flip_grid_y(self.grid)
 
-    def flipped_y(self) -> Grid:
+    def flipped_y(self) -> Grid[T]:
         """Returns a flipped copy of the grid."""
         return Grid(flip_grid_y(self.grid))
 
@@ -809,7 +811,7 @@ class Grid:
         """Flips the grid."""
         self.grid = flip_grid_x(self.grid)
 
-    def flipped_x(self) -> Grid:
+    def flipped_x(self) -> Grid[T]:
         """Returns a flipped copy of the grid."""
         return Grid(flip_grid_x(self.grid))
 
@@ -818,13 +820,13 @@ class Grid:
         for i in range(4):
             yield self.rotated(i)
 
-    def permutations(self) -> Iterator[Grid]:
+    def permutations(self) -> Iterator[Grid[T]]:
         """Returns an iterator of all the possible rotations (including mirrored) of the grid."""
         for rot in self.rotations():
             yield rot
             yield rot.flipped_y()
 
-    def edges(self) -> Iterator[Grid]:
+    def edges(self) -> Iterator[list[T]]:
         """Returns an iterator of all four edges of the grid."""
         yield self.row(0)
         yield self.col(0)
@@ -840,27 +842,33 @@ class Grid:
                 if x == 0 or y == 0 or x == self.width - 1 or y == self.height - 1:
                     yield x, y
 
+    N = TypeVar("N")
+
     def map_items(self, func: Callable[..., Any]) -> None:
         """Applies a function to every item in the grid."""
         self.grid = [[*map(func, row)] for row in self.grid]
 
-    def mapped_items(self, func: Callable[..., Any]) -> Grid:
+    def mapped_items(self, func: Callable[[T], N]) -> Grid[N]:
         """Returns a copy of the grid with a function applied to every item."""
         return Grid([[*map(func, row)] for row in self.grid])
 
-    def map_rows(self, func: Callable[[list], list]) -> None:
+    def map_rows(self, func: Callable[[list[T]], list[N]]) -> None:
         """Applies a function to every row in the grid."""
         self.grid = [*map(func, self.grid)]
 
-    def mapped_rows(self, func: Callable[[list], list]) -> Grid:
+    def mapped_rows(self, func: Callable[[list[T]], list[N]]) -> Grid[N]:
         """Returns a copy of the grid with a function applied to every row."""
-        return Grid([*map(func, self.grid)])
+        new = self.copy()
+        new.map_rows(func)
+        return new
 
-    def map_cols(self, func: Callable[[list], list]) -> None:
+    def map_cols(self, func: Callable[[list[T]], list[N]]) -> None:
         """Applies a function to every column in the grid."""
-        self.grid = self.rotated(1).mapped_rows(func).rotated(-1)
+        self.grid = self.rotated(-1).mapped_rows(func).rotated(1)
 
-    def mapped_cols(self, func: Callable[[list], list]) -> Grid:
+    def mapped_cols(self, func: Callable[[list[T]], list[N]]) -> Grid[N]:
         """Returns a copy of the grid with a function applied to every column."""
         # TODO: This is a bit inefficient. Make it better.
-        return self.rotated(1).mapped_rows(func).rotated(-1)
+        new = self.copy()
+        new.map_cols(func)
+        return new
