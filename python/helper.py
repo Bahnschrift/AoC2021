@@ -616,7 +616,7 @@ class Grid(Generic[T]):
             and all(self[x, y] == other[x, y] for x in range(self.height) for y in range(self.width))
         )
 
-    def __add__(self, other: Grid[T]) -> Grid:
+    def __add__(self, other: Grid) -> Grid:
         """Adds the items of two grids together."""
         new = []
         if self.width != other.width or self.height != other.height:
@@ -680,15 +680,15 @@ class Grid(Generic[T]):
         """Gets a string representation of the grid with each columned padded to a uniform length.
         Shorter items are left-aligned."""
         mapped = self.mapped_items(str)
-        widths = [len(max(row, key=len)) for row in mapped.rotated()]
-        return "\n".join(sep.join(item.ljust(widths[x], pad) for x, item in enumerate(row)) for row in mapped)
+        widths = [len(max(row, key=len)) for row in mapped.rotated().grid]
+        return "\n".join(sep.join(item.ljust(widths[x], pad) for x, item in enumerate(row)) for row in mapped.grid)
 
     def str_aligned_r(self, sep: str = ", ", pad: str = " ") -> str:
         """Gets a string representation of the grid with each columned padded to a uniform length.
         Shorter items are right-aligned."""
         mapped = self.mapped_items(str)
-        widths = [len(max(row, key=len)) for row in mapped.rotated()]
-        return "\n".join(sep.join(item.rjust(widths[x], pad) for x, item in enumerate(row)) for row in mapped)
+        widths = [len(max(row, key=len)) for row in mapped.rotated().grid]
+        return "\n".join(sep.join(item.rjust(widths[x], pad) for x, item in enumerate(row)) for row in mapped.grid)
 
     def copy(self):
         return Grid(self.grid)
@@ -854,36 +854,33 @@ class Grid(Generic[T]):
 
     N = TypeVar("N")
 
-    def map_items(self, func: Callable[[T], N]) -> None:
-        """Applies a function to every item in the grid."""
-        self.grid = [[*map(func, row)] for row in self.grid]
+    # def map_items(self, func: Callable[[T], N]) -> None:
+    #     """Applies a function to every item in the grid."""
+    #     self.grid = [[*map(func, row)] for row in self.grid]
 
     def mapped_items(self, func: Callable[[T], N]) -> Grid[N]:
         """Returns a copy of the grid with a function applied to every item."""
+        return Grid([[*map(func, row)] for row in self.grid])
         new = self.copy()
         new.map_items(func)
         return new
 
-    def map_rows(self, func: Callable[[list[T]], list[N]]) -> None:
-        """Applies a function to every row in the grid."""
-        self.grid = [*map(func, self.grid)]
+    # def map_rows(self, func: Callable[[list[T]], list[N]]) -> None:
+    #     """Applies a function to every row in the grid."""
+    #     self.grid = [*map(func, self.grid)]
 
     def mapped_rows(self, func: Callable[[list[T]], list[N]]) -> Grid[N]:
         """Returns a copy of the grid with a function applied to every row."""
-        new = self.copy()
-        new.map_rows(func)
-        return new
+        return Grid([*map(func, self.grid)])
 
-    def map_cols(self, func: Callable[[list[T]], list[N]]) -> None:
-        """Applies a function to every column in the grid."""
-        self.grid = self.rotated(-1).mapped_rows(func).rotated(1)
+    # def map_cols(self, func: Callable[[list[T]], list[N]]) -> None:
+    #     """Applies a function to every column in the grid."""
+    #     self.grid = self.rotated(-1).mapped_rows(func).rotated(1)
 
     def mapped_cols(self, func: Callable[[list[T]], list[N]]) -> Grid[N]:
         """Returns a copy of the grid with a function applied to every column."""
         # TODO: This is a bit inefficient. Make it better.
-        new = self.copy()
-        new.map_cols(func)
-        return new
+        return self.rotated(-1).mapped_rows(func).rotated(1)
 
     def neighbours_pos(self, pos: tuple[int, int]) -> Iterator[tuple[int, int]]:
         """Returns an iterator of all the positions of the neighbours of each tile."""
