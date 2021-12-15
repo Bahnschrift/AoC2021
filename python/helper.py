@@ -8,6 +8,7 @@ from itertools import chain, combinations, product
 from typing import Any, Iterable, Sized, Callable, Sequence, Iterator, TypeVar, Generic, TYPE_CHECKING
 if TYPE_CHECKING:
     from _typeshed import SupportsGreaterThan, SupportsLessThan  # For Python < 3.10
+from pythonlangutil.overload import Overload, signature
 
 import requests
 from bs4 import BeautifulSoup
@@ -566,18 +567,24 @@ class Grid(Generic[T]):
         self.width = len(grid[0])
         self.height = len(grid)
 
-    def __getitem__(self, pos: int | tuple[int, int] | slice) -> T | list[T] | list[list[T]]:
-        if isinstance(pos, int):
-            return self.grid[pos]
-
-        if isinstance(pos, slice):
-            return self.grid[pos]
-
+    @Overload
+    @signature("tuple")
+    def __getitem__(self, pos: tuple[int, int]) -> T:
         if not (0 <= pos[0] < self.width):
             raise IndexError(f"X index {pos[0]} out of range.")
         elif not (0 <= pos[1] < self.height):
             raise IndexError(f"Y index {pos[1]} out of range.")
         return self.grid[pos[1]][pos[0]]
+    
+    @__getitem__.overload
+    @signature("int")
+    def __getitem__(self, pos: int) -> list[T]:
+        return self.grid[pos]
+    
+    @__getitem__.overload
+    @signature("slice")
+    def __getitem__(self, pos: slice) -> Grid[T]:
+        return Grid(self.grid[pos])
 
     def __setitem__(self, pos: tuple[int, int], value: Any):
         if not (0 <= pos[0] < self.height):
@@ -685,6 +692,9 @@ class Grid(Generic[T]):
 
     def copy(self):
         return Grid(self.grid)
+
+    def size(self) -> int:
+        return self.width * self.height
 
     def row(self, index: int) -> list:
         """Gets the row at the given index from the grid."""
@@ -844,13 +854,15 @@ class Grid(Generic[T]):
 
     N = TypeVar("N")
 
-    def map_items(self, func: Callable[..., Any]) -> None:
+    def map_items(self, func: Callable[[T], N]) -> None:
         """Applies a function to every item in the grid."""
         self.grid = [[*map(func, row)] for row in self.grid]
 
     def mapped_items(self, func: Callable[[T], N]) -> Grid[N]:
         """Returns a copy of the grid with a function applied to every item."""
-        return Grid([[*map(func, row)] for row in self.grid])
+        new = self.copy()
+        new.map_items(func)
+        return new
 
     def map_rows(self, func: Callable[[list[T]], list[N]]) -> None:
         """Applies a function to every row in the grid."""
@@ -872,3 +884,17 @@ class Grid(Generic[T]):
         new = self.copy()
         new.map_cols(func)
         return new
+
+    def neighbours_pos(self, pos: tuple[int, int]) -> Iterator[tuple[int, int]]:
+        """Returns an iterator of all the positions of the neighbours of each tile."""
+        x, y = pos
+        for dx, dy in ADJACENT_4:
+            nx, ny = x + dx, y + dy
+            if 0 <= nx < self.width and 0 <= ny < self.height:
+                yield nx, ny
+    
+    def neighbours(self, pos: tuple[int, int]) -> Iterator[T]:
+        """Returns an iterator of all the neighbours of each tile."""
+        for x, y in self.neighbours_pos(pos):
+            yield self[x, y]
+    
