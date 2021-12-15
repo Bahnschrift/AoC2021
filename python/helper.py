@@ -1,18 +1,18 @@
 from __future__ import annotations
-# from _typeshed import SupportsGreaterThan, SupportsLessThan  # For Python < 3.10
 
 import math
 import os
 import re
-from itertools import chain, combinations, product
-from typing import Any, Iterable, Sized, Callable, Sequence, Iterator, TypeVar, Generic, TYPE_CHECKING
-if TYPE_CHECKING:
-    from _typeshed import SupportsGreaterThan, SupportsLessThan  # For Python < 3.10
-from pythonlangutil.overload import Overload, signature
-
 import requests
 from bs4 import BeautifulSoup
 from rich import print
+from itertools import chain, combinations, product
+from typing import Any, Iterable, Sized, Callable, Sequence, Iterator, TypeVar, Generic, TYPE_CHECKING
+from pythonlangutil.overload import Overload, signature
+
+if TYPE_CHECKING:
+    from _typeshed import SupportsGreaterThan, SupportsLessThan  # For Python < 3.10
+
 
 ADJACENT_4 = ((-1, 0), (1, 0), (0, -1), (0, 1))
 ADJACENT_8 = ((-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1))
@@ -518,8 +518,8 @@ def sign(n: int) -> int:
 # +----------------------------------------------------------------------------+
 
 
-
 T = TypeVar("T")
+
 
 class Grid(Generic[T]):
     """A helpful class for dealing with 2D arrays.
@@ -575,12 +575,12 @@ class Grid(Generic[T]):
         elif not (0 <= pos[1] < self.height):
             raise IndexError(f"Y index {pos[1]} out of range.")
         return self.grid[pos[1]][pos[0]]
-    
+
     @__getitem__.overload
     @signature("int")
     def __getitem__(self, pos: int) -> list[T]:
         return self.grid[pos]
-    
+
     @__getitem__.overload
     @signature("slice")
     def __getitem__(self, pos: slice) -> Grid[T]:
@@ -793,7 +793,7 @@ class Grid(Generic[T]):
         """Counts the number of times the given item is in the grid."""
         return sum(row.count(item) for row in self.grid)
 
-    def max(self, key: Callable[[T], SupportsGreaterThan]=None):
+    def max(self, key: Callable[[T], SupportsGreaterThan] = None):
         """Finds the item of the largest value in the grid."""
         return max((max(row, key=key) for row in self.grid), key=key)
 
@@ -886,9 +886,8 @@ class Grid(Generic[T]):
             nx, ny = x + dx, y + dy
             if 0 <= nx < self.width and 0 <= ny < self.height:
                 yield nx, ny
-    
+
     def neighbours(self, pos: tuple[int, int]) -> Iterator[T]:
         """Returns an iterator of all the neighbours of each tile."""
         for x, y in self.neighbours_pos(pos):
             yield self[x, y]
-    
