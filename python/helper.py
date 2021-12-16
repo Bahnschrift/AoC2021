@@ -6,8 +6,9 @@ import re
 import requests
 from bs4 import BeautifulSoup
 from rich import print
+from collections import defaultdict
 from itertools import chain, combinations, product
-from typing import Any, Iterable, Sized, Callable, Sequence, Iterator, TypeVar, Generic, TYPE_CHECKING
+from typing import Any, Generator, Iterable, Sized, Callable, Sequence, Iterator, TypeVar, Generic, TYPE_CHECKING, Optional
 from pythonlangutil.overload import Overload, signature
 
 if TYPE_CHECKING:
@@ -527,7 +528,7 @@ class Grid(Generic[T]):
     """
 
     @staticmethod
-    def of2Dlist(l: list[list[T]]) -> Grid:
+    def of_2D_list(l: list[list[T]]) -> Grid:
         """Initializes a Grid with a 2D list.
 
         :param l: the 2D list to initialize the grid with
@@ -536,7 +537,7 @@ class Grid(Generic[T]):
         return Grid(l)
 
     @staticmethod
-    def ofValWidthHeight(val: T, width: int, height: int) -> Grid:
+    def of_val_width_height(val: T, width: int, height: int) -> Grid:
         """Initializes a grid with a default value and width and height.
         [[0, 0], [0, 0]]
 
@@ -546,26 +547,31 @@ class Grid(Generic[T]):
         :returns: a grid with the specified width and height and the default value
         """
         return Grid([[val] * width for _ in range(height)])
+    
+    @staticmethod
+    def of_infinite_grid(grid: InfiniteGrid) -> Grid:
+        """Initializes a grid with an infinite grid.
+
+        :param grid: the infinite grid to initialize the grid with
+        :returns: the grid initialized with the infinite grid
+        """
+        min_x, min_y, max_x, max_y = grid.bounds()
+        return Grid([[grid[x, y] for x in range(min_x, max_x + 1)] for y in range(min_y, max_y + 1)])
 
     def __init__(self, grid: Sequence[Sequence[T]], default: Any = None):
-        # T = TypeVar("T")
-        self.grid: list[list[T]]
-        self.width: int
-        self.height: int
-
         if len(grid) == 0:
             raise ValueError("Grid cannot be empty.")
 
         if all(len(row) == len(grid[0]) for row in grid):
-            self.grid = [[*row] for row in grid]
+            self.grid: list[list[T]] = [[*row] for row in grid]
         elif default is not None:
             self.width = len(max(grid, key=len))
-            self.grid = [[*row] + [default] * (self.width - len(row)) for row in grid]
+            self.grid: list[list[T]] = [[*row] + [default] * (self.width - len(row)) for row in grid]
         else:
             raise ValueError("Grid must be rectangular or a default value must be given to pad shorter rows.")
 
-        self.width = len(grid[0])
-        self.height = len(grid)
+        self.width: int = len(grid[0])
+        self.height: int = len(grid)
 
     @Overload
     @signature("tuple")
@@ -586,7 +592,7 @@ class Grid(Generic[T]):
     def __getitem__(self, pos: slice) -> Grid[T]:
         return Grid(self.grid[pos])
 
-    def __setitem__(self, pos: tuple[int, int], value: Any):
+    def __setitem__(self, pos: tuple[int, int], value: T):
         if not (0 <= pos[0] < self.height):
             raise IndexError(f"Y index {pos[0]} out of range.")
         elif not (0 <= pos[1] < self.width):
@@ -710,7 +716,14 @@ class Grid(Generic[T]):
 
     def positions(self) -> Iterator[tuple[int, int]]:
         """Returns an iterator of all positions in the grid."""
-        return product(range(self.height), range(self.width))
+        for x in range(self.width):
+            for y in range(self.height):
+                yield (x, y)
+
+    def items(self) -> Iterator[T]:
+        """Returns an iterator of all items in the grid."""
+        for pos in self.positions():
+            yield self[pos]
 
     def contains(self, item: Any) -> bool:
         """Checks if the given item is in the grid."""
@@ -795,7 +808,8 @@ class Grid(Generic[T]):
 
     def max(self, key: Callable[[T], SupportsGreaterThan] = None):
         """Finds the item of the largest value in the grid."""
-        return max((max(row, key=key) for row in self.grid), key=key)
+        return max(self.items(), key=key)
+       # return max((max(row, key=key) for row in self.grid), key=key)
 
     def min(self, key: Callable[[T], SupportsLessThan] = None):
         """Finds the item of the smallest value in the grid."""
@@ -891,3 +905,159 @@ class Grid(Generic[T]):
         """Returns an iterator of all the neighbours of each tile."""
         for x, y in self.neighbours_pos(pos):
             yield self[x, y]
+
+    def neighbours_pos_diag(self, pos: tuple[int, int]) -> Iterator[tuple[int, int]]:
+        """Returns an iterator of all the positions of the neighbours of each tile."""
+        x, y = pos
+        for dx, dy in ADJACENT_8:
+            nx, ny = x + dx, y + dy
+            if 0 <= nx < self.width and 0 <= ny < self.height:
+                yield nx, ny
+    
+    def neighbours_diag(self, pos: tuple[int, int]) -> Iterator[T]:
+        """Returns an iterator of all the neighbours of each tile."""
+        for x, y in self.neighbours_pos_diag(pos):
+            yield self[x, y]
+    
+
+class InfiniteGrid(Generic[T]):
+    """
+    WARNING: Potentially broken for negative positions
+    """
+    
+    
+    @staticmethod
+    def of_points(points: Iterable[tuple[int, int]], default: T, point: T) -> InfiniteGrid[int]:
+        """Returns an infinite grid of the given points."""
+        return InfiniteGrid(default, ((pt, point) for pt in points))
+    
+    def __init__(self, default: T, values: Iterable[tuple[tuple[int, int], T]]):
+        self.grid: defaultdict[tuple[int, int], T] = defaultdict(lambda: default)
+        self.default: T = default
+        for pt, value in values:
+            self.grid[pt] = value
+
+    def __getitem__(self, pos: tuple[int, int]) -> T:
+        if pos in self.grid:
+            return self.grid[pos]
+        return self.default
+    
+    def __setitem__(self, pos: tuple[int, int], value: T) -> None:
+        self.grid[pos] = value
+    
+    def __contains__(self, pos: tuple[int, int]) -> bool:
+        """Returns whether the grid contains the given position."""
+        return self.grid[pos] != self.default if pos in self.grid else False
+
+    def __repr__(self, sep: str = "") -> str:
+        _, _, w, h = self.bounds_wh()
+        min_x, min_y, max_x, max_y = self.bounds()
+        ls = [[self[x, y] for x in range(min_x, max_x + 1)] for y in range(min_y, max_y + 1)]
+        return f"[{w} x {h}] InfiniteGrid({ls})"
+    
+    def __str__(self, sep: str = "") -> str:
+        min_x, min_y, max_x, max_y = self.bounds()
+        return "\n".join(
+            str([self[x, y] for x in range(min_x, max_x + 1)])
+            for y in range(min_y, max_y + 1)
+        )
+    
+    def __eq__(self, other: InfiniteGrid[T]) -> bool:
+        return self.grid == other.grid
+    
+    def to_finite_grid(self) -> Grid[T]:
+        """Returns a finite grid of the same size."""
+        return Grid.of_infinite_grid(self)
+    
+    def str_aligned_l(self, sep: str = " ", pad: str = " ") -> str:
+        # TODO: Fix
+        min_x, min_y, max_x, max_y = self.bounds()
+        
+        max_len = len(str(self.max_value(key = lambda x: len(str(x)))))
+        num_left_size = len(str(max(range(min_y, max_y + 1), key=lambda x: len(str(x)))))
+        num_top_size = len(str(max(range(min_x, max_x + 1), key=lambda x: len(str(x)))))
+        col_size = max(max_len, num_top_size)
+        
+        s = [" " * (num_left_size + 1)]
+        for x in range(min_x, max_x + 1):
+            s[0] += str(x).ljust(col_size + len(sep))
+            
+        for y in range(min_y, max_y + 1):
+            row = str(y).rjust(num_left_size, " ") + " "
+            for x in range(min_x, max_x + 1):
+                row += (str(self[x, y])).ljust(col_size, pad) + sep
+            s += [row]
+        return "\n".join(s)
+        
+    
+    def locations(self) -> Iterator[tuple[int, int]]:
+        return iter(self.grid.keys())
+    
+    def items(self) -> Iterator[tuple[tuple[int, int], T]]:
+        """Returns an iterator of all the items in the grid."""
+        return iter(self.grid.items())
+    
+    def values(self) -> Iterator[T]:
+        """Returns an iterator of all the values in the grid."""
+        return iter(self.grid.values())
+    
+    def max_value(self, key = Callable[[T], Any]) -> T:
+        return max(self.values(), key=key)
+    
+    def bounds(self) -> tuple[int, int, int, int]:
+        """Returns the bounds of the grid in the format (min_x, min_y, max_x, max_y)."""
+        min_x = min(x for x, _ in self.locations())
+        min_y = min(y for _, y in self.locations())
+        max_x = max(x for x, _ in self.locations())
+        max_y = max(y for _, y in self.locations())
+        return min_x, min_y, max_x, max_y
+    
+    def bounds_wh(self) -> tuple[int, int, int, int]:
+        """Returns the width and height of the grid."""
+        min_x, min_y, max_x, max_y = self.bounds()
+        return min_x, min_y, max_x - min_x + 1, max_y - min_y + 1
+
+    N = TypeVar("N")
+    def map(self, func: Callable[[T], N]) -> None:
+        """Applies a function to every non-default item in the grid."""
+        for loc in self.locations():
+            self[loc] = func(self[loc])
+    
+    def mapped(self, func: Callable[[T], N]) -> InfiniteGrid[N]:
+        """Returns a copy of the grid with a function applied to every non-default item."""
+        return InfiniteGrid(self.default, ((loc, func(self[loc])) for loc in self.locations()))
+    
+    def replace(self, old: T, new: T) -> None:
+        """Replaces all instances of old with new."""
+        self.map(lambda x: new if x == old else x)
+    
+    def replaced(self, old: T, new: T) -> InfiniteGrid[T]:
+        """Returns a copy of the grid with all instances of old replaced with new."""
+        return self.mapped(lambda x: new if x == old else x)
+    
+    def neighbours_pos(self, pos: tuple[int, int]) -> Iterator[tuple[int, int]]:
+        """Returns an iterator of all the positions of the neighbours of each tile."""
+        x, y = pos
+        for dx, dy in ADJACENT_4:
+            nx, ny = x + dx, y + dy
+            if (nx, ny) in self:
+                yield nx, ny
+    
+    def neighbours(self, pos: tuple[int, int]) -> Iterator[T]:
+        """Returns an iterator of all the neighbours of each tile."""
+        for x, y in self.neighbours_pos(pos):
+            yield self[x, y]
+    
+    def neighbours_pos_diag(self, pos: tuple[int, int]) -> Iterator[tuple[int, int]]:
+        """Returns an iterator of all the positions of the neighbours of each tile."""
+        x, y = pos
+        for dx, dy in ADJACENT_8:
+            nx, ny = x + dx, y + dy
+            if (nx, ny) in self:
+                yield nx, ny
+
+    def neighbours_diag(self, pos: tuple[int, int]) -> Iterator[T]:
+        """Returns an iterator of all the neighbours of each tile."""
+        for x, y in self.neighbours_pos_diag(pos):
+            yield self[x, y]
+    
