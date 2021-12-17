@@ -139,88 +139,7 @@ def submit_part_2(ans: Any, day: int, year: int = 2021) -> None:
     :param year: the year of the AoC challenge (default: 2021)
     """
     _submit(2, ans, day, year)
-
-
-# +----------------------------------------------------------------------------+
-# |                                                                            |
-# |                            Input downloading                               |
-# |                                                                            |
-# +----------------------------------------------------------------------------+
-def _download_input(day: int, year: int, path: str) -> None:
-    """Download the input file and save it to the given path.
-
-    :param day: the day of the AoC challenge
-    :param year: the year of the AoC challenge (default: 2021)
-    :param path: the path to the folder containing the input file (default: "../inputs/")
-    """
-    headers = {"session": _get_session_cookie()}
-    url = f"https://adventofcode.com/{year}/day/{day}/input"
-    request = requests.post(url, cookies=headers)
-    text = request.text
-    request.close()
-
-    if text.startswith("Puzzle inputs differ by user."):
-        _update_session_cookie()
-        _download_input(day, year, path)
-    elif text.startswith("Please don't repeatedly request this endpoint"):
-        print("[bold red]Failed to download input, please try again later.")
-        text = ""
-    else:
-        print("[bold green]Input download successful.")
-    with open(f"{path}/day{day}.txt", "w+") as f:
-        f.write(text)
-
-
-def _ensure_input_file(day: int, year: int, path: str) -> None:
-    """Ensure the input file exists and contains data.
-
-    :param day: the day of the AoC challenge
-    :param year: the year of the AoC challenge (default: 2021)
-    :param path: the path to the folder containing the input file (default: "../inputs/")
-    """
-    if f"day{day}.txt" not in os.listdir(path) or open(f"{path}/day{day}.txt", "r").read() == "":
-        print(f"[italic]Downloading input for day {day}...")
-        _download_input(day, year, path)
-
-
-def get_input(day: int, year: int = 2021, path: str = "../inputs/") -> str:
-    """Gets the AoC input as a string.
-
-    :param day: the day of the AoC challenge
-    :param year: the year of the AoC challenge (default: 2021)
-    :param path: the path to the folder containing the input file (default: "../inputs/")
-    :returns: the input as a string.
-    """
-    _ensure_input_file(day, year, path)
-    with open(f"{path}/day{day}.txt", "r") as f:
-        inp = f.read().rstrip("\n")
-    return inp
-
-
-def get_input_lines(day: int, year: int = 2021, path: str = "../inputs/") -> list[str]:
-    """Gets the AoC input as a list of lines.
-
-    :param day: the day of the AoC challenge
-    :param year: the year of the AoC challenge (default: 2021)
-    :param path: the path to the folder containing the input file (default: "../inputs/")
-    :returns: the input as a list of lines
-    """
-    _ensure_input_file(day, year, path)
-    with open(f"{path}/day{day}.txt", "r") as f:
-        lines = [line.rstrip("\n") for line in f.readlines()]
-    return lines
-
-
-def get_input_ints(day: int, year: int = 2021, path: str = "../inputs/") -> list[int]:
-    """Gets the AoC input as a list of ints.
-
-    :param day: the day of the AoC challenge
-    :param year: the year of the AoC challenge (default: 2021)
-    :param path: the path to the folder containing the input file (default: "../inputs/")
-    :returns: the input as a list of ints
-    """
-    return list(map(int, get_input_lines(day=day, year=year, path=path)))
-
+    
 
 # +----------------------------------------------------------------------------+
 # |                                                                            |
@@ -514,7 +433,7 @@ def sign(n: int) -> int:
 
 # +----------------------------------------------------------------------------+
 # |                                                                            |
-# |                               The Grid                                     |
+# |                               The Grids                                    |
 # |                                                                            |
 # +----------------------------------------------------------------------------+
 
@@ -1060,4 +979,95 @@ class InfiniteGrid(Generic[T]):
         """Returns an iterator of all the neighbours of each tile."""
         for x, y in self.neighbours_pos_diag(pos):
             yield self[x, y]
+
+
+# +----------------------------------------------------------------------------+
+# |                                                                            |
+# |                            Input downloading                               |
+# |                                                                            |
+# +----------------------------------------------------------------------------+
+def _download_input(day: int, year: int, path: str) -> None:
+    """Download the input file and save it to the given path.
+
+    :param day: the day of the AoC challenge
+    :param year: the year of the AoC challenge (default: 2021)
+    :param path: the path to the folder containing the input file (default: "../inputs/")
+    """
+    headers = {"session": _get_session_cookie()}
+    url = f"https://adventofcode.com/{year}/day/{day}/input"
+    request = requests.post(url, cookies=headers)
+    text = request.text
+    request.close()
+
+    if text.startswith("Puzzle inputs differ by user."):
+        _update_session_cookie()
+        _download_input(day, year, path)
+    elif text.startswith("Please don't repeatedly request this endpoint"):
+        print("[bold red]Failed to download input, please try again later.")
+        text = ""
+    else:
+        print("[bold green]Input download successful.")
+    with open(f"{path}/day{day}.txt", "w+") as f:
+        f.write(text)
+
+
+def _ensure_input_file(day: int, year: int, path: str) -> None:
+    """Ensure the input file exists and contains data.
+
+    :param day: the day of the AoC challenge
+    :param year: the year of the AoC challenge (default: 2021)
+    :param path: the path to the folder containing the input file (default: "../inputs/")
+    """
+    if f"day{day}.txt" not in os.listdir(path) or open(f"{path}/day{day}.txt", "r").read() == "":
+        print(f"[italic]Downloading input for day {day}...")
+        _download_input(day, year, path)
+
+
+def get_input(day: int, year: int = 2021, path: str = "../inputs/") -> str:
+    """Gets the AoC input as a string.
+
+    :param day: the day of the AoC challenge
+    :param year: the year of the AoC challenge (default: 2021)
+    :param path: the path to the folder containing the input file (default: "../inputs/")
+    :returns: the input as a string.
+    """
+    _ensure_input_file(day, year, path)
+    with open(f"{path}/day{day}.txt", "r") as f:
+        inp = f.read().rstrip("\n")
+    return inp
+
+
+def get_input_lines(day: int, year: int = 2021, path: str = "../inputs/") -> list[str]:
+    """Gets the AoC input as a list of lines.
+
+    :param day: the day of the AoC challenge
+    :param year: the year of the AoC challenge (default: 2021)
+    :param path: the path to the folder containing the input file (default: "../inputs/")
+    :returns: the input as a list of lines
+    """
+    _ensure_input_file(day, year, path)
+    with open(f"{path}/day{day}.txt", "r") as f:
+        lines = [line.rstrip("\n") for line in f.readlines()]
+    return lines
+
+
+def get_input_ints(day: int, year: int = 2021, path: str = "../inputs/") -> list[int]:
+    """Gets the AoC input as a list of ints on different lines.
+
+    :param day: the day of the AoC challenge
+    :param year: the year of the AoC challenge (default: 2021)
+    :param path: the path to the folder containing the input file (default: "../inputs/")
+    :returns: the input as a list of ints
+    """
+    return list(map(int, get_input_lines(day=day, year=year, path=path)))
+
+
+def get_input_grid(day: int, year: int = 2021, path: str = "../inputs/") -> Grid[str]:
+    """Gets the AoC input as a grid of strings, where each character is treated as a cell
     
+    :param day: the day of the AoC challenge
+    :param year: the year of the AoC challenge (default: 2021)
+    :param path: the path to the folder containing the input file (default: "../inputs/")
+    :returns: the input as a grid of strings
+    """
+    return Grid(get_input_lines(day=day, year=year, path=path))
