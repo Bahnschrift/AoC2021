@@ -8,7 +8,19 @@ from bs4 import BeautifulSoup
 from rich import print
 from collections import defaultdict
 from itertools import chain, combinations, product
-from typing import Any, Generator, Iterable, Sized, Callable, Sequence, Iterator, TypeVar, Generic, TYPE_CHECKING, Optional
+from typing import (
+    Any,
+    Generator,
+    Iterable,
+    Sized,
+    Callable,
+    Sequence,
+    Iterator,
+    TypeVar,
+    Generic,
+    TYPE_CHECKING,
+    Optional,
+)
 from pythonlangutil.overload import Overload, signature
 
 if TYPE_CHECKING:
@@ -139,7 +151,7 @@ def submit_part_2(ans: Any, day: int, year: int = 2021) -> None:
     :param year: the year of the AoC challenge (default: 2021)
     """
     _submit(2, ans, day, year)
-    
+
 
 # +----------------------------------------------------------------------------+
 # |                                                                            |
@@ -466,7 +478,7 @@ class Grid(Generic[T]):
         :returns: a grid with the specified width and height and the default value
         """
         return Grid([[val] * width for _ in range(height)])
-    
+
     @staticmethod
     def of_infinite_grid(grid: InfiniteGrid) -> Grid:
         """Initializes a grid with an infinite grid.
@@ -728,7 +740,8 @@ class Grid(Generic[T]):
     def max(self, key: Callable[[T], SupportsGreaterThan] = None):
         """Finds the item of the largest value in the grid."""
         return max(self.items(), key=key)
-       # return max((max(row, key=key) for row in self.grid), key=key)
+
+    # return max((max(row, key=key) for row in self.grid), key=key)
 
     def min(self, key: Callable[[T], SupportsLessThan] = None):
         """Finds the item of the smallest value in the grid."""
@@ -832,24 +845,23 @@ class Grid(Generic[T]):
             nx, ny = x + dx, y + dy
             if 0 <= nx < self.width and 0 <= ny < self.height:
                 yield nx, ny
-    
+
     def neighbours_diag(self, pos: tuple[int, int]) -> Iterator[T]:
         """Returns an iterator of all the neighbours of each tile."""
         for x, y in self.neighbours_pos_diag(pos):
             yield self[x, y]
-    
+
 
 class InfiniteGrid(Generic[T]):
     """
     WARNING: Potentially broken for negative positions
     """
-    
-    
+
     @staticmethod
     def of_points(points: Iterable[tuple[int, int]], default: T, point: T) -> InfiniteGrid[int]:
         """Returns an infinite grid of the given points."""
         return InfiniteGrid(default, ((pt, point) for pt in points))
-    
+
     def __init__(self, default: T, values: Iterable[tuple[tuple[int, int], T]]):
         self.grid: defaultdict[tuple[int, int], T] = defaultdict(lambda: default)
         self.default: T = default
@@ -860,10 +872,10 @@ class InfiniteGrid(Generic[T]):
         if pos in self.grid:
             return self.grid[pos]
         return self.default
-    
+
     def __setitem__(self, pos: tuple[int, int], value: T) -> None:
         self.grid[pos] = value
-    
+
     def __contains__(self, pos: tuple[int, int]) -> bool:
         """Returns whether the grid contains the given position."""
         return self.grid[pos] != self.default if pos in self.grid else False
@@ -873,56 +885,52 @@ class InfiniteGrid(Generic[T]):
         min_x, min_y, max_x, max_y = self.bounds()
         ls = [[self[x, y] for x in range(min_x, max_x + 1)] for y in range(min_y, max_y + 1)]
         return f"[{w} x {h}] InfiniteGrid({ls})"
-    
+
     def __str__(self, sep: str = "") -> str:
         min_x, min_y, max_x, max_y = self.bounds()
-        return "\n".join(
-            str([self[x, y] for x in range(min_x, max_x + 1)])
-            for y in range(min_y, max_y + 1)
-        )
-    
+        return "\n".join(str([self[x, y] for x in range(min_x, max_x + 1)]) for y in range(min_y, max_y + 1))
+
     def __eq__(self, other: InfiniteGrid[T]) -> bool:
         return self.grid == other.grid
-    
+
     def to_finite_grid(self) -> Grid[T]:
         """Returns a finite grid of the same size."""
         return Grid.of_infinite_grid(self)
-    
+
     def str_aligned_l(self, sep: str = " ", pad: str = " ") -> str:
         # TODO: Fix
         min_x, min_y, max_x, max_y = self.bounds()
-        
-        max_len = len(str(self.max_value(key = lambda x: len(str(x)))))
+
+        max_len = len(str(self.max_value(key=lambda x: len(str(x)))))
         num_left_size = len(str(max(range(min_y, max_y + 1), key=lambda x: len(str(x)))))
         num_top_size = len(str(max(range(min_x, max_x + 1), key=lambda x: len(str(x)))))
         col_size = max(max_len, num_top_size)
-        
+
         s = [" " * (num_left_size + 1)]
         for x in range(min_x, max_x + 1):
             s[0] += str(x).ljust(col_size + len(sep))
-            
+
         for y in range(min_y, max_y + 1):
             row = str(y).rjust(num_left_size, " ") + " "
             for x in range(min_x, max_x + 1):
                 row += (str(self[x, y])).ljust(col_size, pad) + sep
             s += [row]
         return "\n".join(s)
-        
-    
+
     def locations(self) -> Iterator[tuple[int, int]]:
         return iter(self.grid.keys())
-    
+
     def items(self) -> Iterator[tuple[tuple[int, int], T]]:
         """Returns an iterator of all the items in the grid."""
         return iter(self.grid.items())
-    
+
     def values(self) -> Iterator[T]:
         """Returns an iterator of all the values in the grid."""
         return iter(self.grid.values())
-    
-    def max_value(self, key = Callable[[T], Any]) -> T:
+
+    def max_value(self, key=Callable[[T], Any]) -> T:
         return max(self.values(), key=key)
-    
+
     def bounds(self) -> tuple[int, int, int, int]:
         """Returns the bounds of the grid in the format (min_x, min_y, max_x, max_y)."""
         min_x = min(x for x, _ in self.locations())
@@ -930,30 +938,31 @@ class InfiniteGrid(Generic[T]):
         max_x = max(x for x, _ in self.locations())
         max_y = max(y for _, y in self.locations())
         return min_x, min_y, max_x, max_y
-    
+
     def bounds_wh(self) -> tuple[int, int, int, int]:
         """Returns the width and height of the grid."""
         min_x, min_y, max_x, max_y = self.bounds()
         return min_x, min_y, max_x - min_x + 1, max_y - min_y + 1
 
     N = TypeVar("N")
+
     def map(self, func: Callable[[T], N]) -> None:
         """Applies a function to every non-default item in the grid."""
         for loc in self.locations():
             self[loc] = func(self[loc])
-    
+
     def mapped(self, func: Callable[[T], N]) -> InfiniteGrid[N]:
         """Returns a copy of the grid with a function applied to every non-default item."""
         return InfiniteGrid(self.default, ((loc, func(self[loc])) for loc in self.locations()))
-    
+
     def replace(self, old: T, new: T) -> None:
         """Replaces all instances of old with new."""
         self.map(lambda x: new if x == old else x)
-    
+
     def replaced(self, old: T, new: T) -> InfiniteGrid[T]:
         """Returns a copy of the grid with all instances of old replaced with new."""
         return self.mapped(lambda x: new if x == old else x)
-    
+
     def neighbours_pos(self, pos: tuple[int, int]) -> Iterator[tuple[int, int]]:
         """Returns an iterator of all the positions of the neighbours of each tile."""
         x, y = pos
@@ -961,12 +970,12 @@ class InfiniteGrid(Generic[T]):
             nx, ny = x + dx, y + dy
             if (nx, ny) in self:
                 yield nx, ny
-    
+
     def neighbours(self, pos: tuple[int, int]) -> Iterator[T]:
         """Returns an iterator of all the neighbours of each tile."""
         for x, y in self.neighbours_pos(pos):
             yield self[x, y]
-    
+
     def neighbours_pos_diag(self, pos: tuple[int, int]) -> Iterator[tuple[int, int]]:
         """Returns an iterator of all the positions of the neighbours of each tile."""
         x, y = pos
@@ -1064,7 +1073,7 @@ def get_input_ints(day: int, year: int = 2021, path: str = "../inputs/") -> list
 
 def get_input_grid(day: int, year: int = 2021, path: str = "../inputs/") -> Grid[str]:
     """Gets the AoC input as a grid of strings, where each character is treated as a cell
-    
+
     :param day: the day of the AoC challenge
     :param year: the year of the AoC challenge (default: 2021)
     :param path: the path to the folder containing the input file (default: "../inputs/")
